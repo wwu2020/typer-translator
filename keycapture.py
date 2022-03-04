@@ -5,13 +5,14 @@ import platform as _platform
 
 # A smarter man could figure out how to pass the channel into here and publish directly
 class Keycapture:  
-    # this is from keyboard.get_typed_strings but ignores ctrl modifier
+    # this is from keyboard.get_typed_strings but ignores ctrl and windows key modifiers
     def capture_sentence(self, events, allow_backspace=True):
         backspace_name = 'delete' if _platform.system() == 'Darwin' else 'backspace'
 
         shift_pressed = False
         capslock_pressed = False
         ctrl_pressed = False
+        windows_pressed = False
         string = ''
         for event in events:
             name = event.name
@@ -23,6 +24,8 @@ class Keycapture:
             
             if 'ctrl' in event.name:
                 ctrl_pressed = event.event_type == 'down'
+            if 'windows' in event.name:
+                windows_pressed = event.event_type == 'down'
 
             if 'shift' in event.name:
                 shift_pressed = event.event_type == 'down'
@@ -34,7 +37,7 @@ class Keycapture:
                 if len(name) == 1:
                     if shift_pressed ^ capslock_pressed:
                         name = name.upper()
-                    string = string if ctrl_pressed else string + name
+                    string = string if ctrl_pressed or windows_pressed else string + name
                 else:
                     yield string
                     string = ''
