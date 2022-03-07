@@ -108,16 +108,7 @@ class KeyCapture:
             p = self.wobserver.get_current_process()
 
             if self.enabled:
-                if p in self.whitelist:
-                    if p not in d:
-                        d[p] = []
-                
-                    if event.name == 'enter':
-                        self.send_sentence(self.capture_sentence(d[p]))
-                        d[p] = []
-                    else:
-                        d[p].append(event) 
-                elif w in self.whitelist:
+                if w in self.whitelist:
                     if w not in d:
                         d[w] = []
                 
@@ -126,6 +117,16 @@ class KeyCapture:
                         d[w] = []
                     else:
                         d[w].append(event) 
+                elif p in self.whitelist:
+                    if p not in d:
+                        d[p] = []
+                
+                    if event.name == 'enter':
+                        self.send_sentence(self.capture_sentence(d[p]))
+                        d[p] = []
+                    else:
+                        d[p].append(event) 
+                
 
             
 
