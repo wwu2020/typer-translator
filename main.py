@@ -220,6 +220,8 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         create_menu_item(menu, 'Open Config', self.on_open_config)
         create_menu_item(menu, 'Reload Config', self.on_reload_config)
         menu.AppendSeparator()
+        create_menu_item(menu, '2 Letter ISO codes', self.on_iso_codes)
+        menu.AppendSeparator()
         create_menu_item(menu, 'Exit', self.on_exit)
         return menu
 
@@ -235,6 +237,9 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
 
     def on_reload_config(self, event):
         reload_config()
+    
+    def on_iso_codes(self, event):
+        webbrowser.open("https://www.sitepoint.com/iso-2-letter-language-codes/")
 
     def on_exit(self, event):
         wx.CallAfter(self.Destroy)
