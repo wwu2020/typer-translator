@@ -1,10 +1,10 @@
 from genericpath import exists
 from flask import Flask, request, send_from_directory, g, jsonify
 from gevent import config
-config.set('resolver', 'block')
+config.set('resolver', 'block') #explained below
 from gevent.pywsgi import WSGIServer
 import flask_sse
-import threading
+import threading, signal
 import json
 import sqlite3
 import configparser
@@ -75,7 +75,7 @@ wobserver = WindowObserver(PORT)
 klogger = KeyCapture(whitelist, PORT, wobserver, config)
 
 #server = WSGIServer(("", PORT), app) 
-obthread = threading.Thread(target=wobserver.observe, daemon=True)
+obthread = threading.Thread(target=wobserver.observe_event_based, daemon=True)
 klthread = threading.Thread(target=klogger.start_capture, daemon=True)
 
 def get_db():
@@ -183,9 +183,10 @@ def home(path):
 #     server.stop()
 #     return "Goodbye, remember to hit any key"
 
-# # for when you run in a terminal
-# def ctrlc_handler(signum, frame):
-#     server.stop()
+# for when you run in a terminal
+def ctrlc_handler(signum, frame):
+    wobserver.cleanup()
+    #server.stop()
 
 def populate_whitelist():
     for entry in query_db('SELECT * FROM whitelist'):
@@ -275,9 +276,9 @@ def main():
 
     # for debug in terminal
 
-    # signal.signal(signal.SIGINT, ctrlc_handler)
+    signal.signal(signal.SIGINT, ctrlc_handler)
     # server.serve_forever()
-
+    ctrlc_handler()
     print("Goodbye")
 
 if __name__ == "__main__":

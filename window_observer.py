@@ -3,6 +3,32 @@ import win32gui, win32process
 import psutil
 import requests
 
+import sys
+import time
+import ctypes
+import ctypes.wintypes
+
+# https://stackoverflow.com/questions/4407631/is-there-windows-system-event-on-active-window-changed
+# https://stackoverflow.com/questions/15849564/how-to-use-winapi-setwineventhook-in-python
+
+WINEVENT_OUTOFCONTEXT = 0
+WINEVENT_SKIPOWNTHREAD = 1
+WINEVENT_SKIPOWNPROCESS = 2
+WINEVENT_INCONTEXT = 4
+
+EVENT_SYSTEM_FOREGROUND = 0x0003
+
+WinEventProcType = ctypes.WINFUNCTYPE(
+    None, 
+    ctypes.wintypes.HANDLE,
+    ctypes.wintypes.DWORD,
+    ctypes.wintypes.HWND,
+    ctypes.wintypes.LONG,
+    ctypes.wintypes.LONG,
+    ctypes.wintypes.DWORD,
+    ctypes.wintypes.DWORD
+)
+
 class WindowObserver:
     def __init__(self, port):
         self.port = port
@@ -15,6 +41,22 @@ class WindowObserver:
 
         self.open_windows = []
         self.open_window_processes = []
+
+        self.user32 = ctypes.windll.user32
+        self.ole32 = ctypes.windll.ole32
+
+        self.ole32.CoInitialize(0)
+
+        self.WinEventProc = WinEventProcType(self.observer_callback)
+        self.user32.SetWinEventHook.restype = ctypes.wintypes.HANDLE
+        self.hook = self.user32.SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, 0, self.WinEventProc, 0, 0, WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS);
+        if self.hook == 0:
+            print('SetWinEventHook failed')
+            sys.exit(1)     
+
+    def cleanup(self):
+        self.user32.UnhookWinEvent(self.hook)
+        self.ole32.CoUninitialize()
     
     def get_current_process(self):
         return self.current_process_name
@@ -48,43 +90,34 @@ class WindowObserver:
 
         return self.open_windows
 
-    # while this is cool, the user's really only going to be typing into windows that are open
-    # def get_all_user_processes(self, bind_to_open_windows=True):
-    #     user_name = win32api.GetUserNameEx(win32api.NameSamCompatible)
-    #     processes = []
-    #     for proc in psutil.process_iter():
-    #         try:
-    #             if proc.username() == user_name:
-    #                 if proc.name() not in processes:
-    #                     processes.append(proc.name())
-    #         except:
-    #             pass
-    #     processes.sort()
-    #     print(processes)      
-    
-    def observe(self):
-        while True:
-            window = win32gui.GetForegroundWindow() 
-            self.current_window_name = win32gui.GetWindowText(window) 
-            (tid, self.current_pid) = win32process.GetWindowThreadProcessId(window) # (thread id, process id)
-            # different windows/tabs will have the same pid/tid, so unfortunately we have to stick with window titles
+    def observer_callback(self, hWinEventHook, event, hwnd, idObject, idChild, dwEventThread, dwmsEventTime):
+        self.current_window_name = win32gui.GetWindowText(hwnd) 
+        (tid, self.current_pid) = win32process.GetWindowThreadProcessId(hwnd) # (thread id, process id)
+        # different windows/tabs will have the same pid/tid, so unfortunately we have to stick with window titles
 
-            if self.current_window_name != self.last_window_name:
-                if self.current_pid > 0:
+        if self.current_window_name != self.last_window_name:
+            if self.current_pid > 0:
+                try:
+                    self.current_process_name = psutil.Process(self.current_pid).name()
+
+                    self.last_window_name = self.current_window_name
+
+                    data = {
+                        "type": "program",
+                        "window_name": self.current_window_name,
+                        "process_name": self.current_process_name
+                    }
+
                     try:
-                        self.current_process_name = psutil.Process(self.current_pid).name()
-
-                        self.last_window_name = self.current_window_name
-
-                        data = {
-                            "type": "program",
-                            "window_name": self.current_window_name,
-                            "process_name": self.current_process_name
-                        }
-
-                        try:
-                            requests.post('http://localhost:' + str(self.port) + '/publish', json=data)
-                        except:
-                            pass
-                    except: # When we alt tab/task switch, we get a weird PID
+                        requests.post('http://localhost:' + str(self.port) + '/publish', json=data)
+                    except:
                         pass
+                except: # When we alt tab/task switch, we get a weird PID
+                    pass
+        
+    # compared to self.observe in previous commits, we save like 10% cpu if we're event driven
+    def observe_event_based(self):
+        msg = ctypes.wintypes.MSG()
+        while self.user32.GetMessageW(ctypes.byref(msg), 0, 0, 0) != 0:
+            self.user32.TranslateMessageW(msg)
+            self.user32.DispatchMessageW(msg)
