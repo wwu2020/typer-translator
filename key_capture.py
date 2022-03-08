@@ -6,6 +6,21 @@ import platform as _platform
 
 from translator import Translator
 
+invisible_keys = {
+    'left',
+    'up',
+    'down',
+    'right',
+    'esc',
+    'tab',
+    'scroll lock',
+    'print screen',
+    'insert',
+    'pause',
+    'caps lock',
+    'num lock',
+}
+
 # A smarter man could figure out how to pass the channel into here and publish directly
 class KeyCapture:  
     def __init__(self, whitelist, port, wobserver, config):
@@ -85,7 +100,7 @@ class KeyCapture:
                         string = ''  
             elif event.event_type == 'down':
                 if ctrl_a_state:
-                    if event.name not in keyboard.all_modifiers or event.name == 'space':
+                    if event.name not in set.union(keyboard.all_modifiers, invisible_keys) or event.name == 'space':
                         string = name
                     ctrl_a_state = False
                 elif len(name) == 1:
