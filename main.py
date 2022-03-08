@@ -278,7 +278,7 @@ def main():
 
     signal.signal(signal.SIGINT, ctrlc_handler)
     # server.serve_forever()
-    ctrlc_handler()
+    ctrlc_handler(0, 0)
     print("Goodbye")
 
 if __name__ == "__main__":

@@ -128,8 +128,8 @@ class KeyCapture:
                 "tl_phrase": translated
             }
             try:
-                print("f: " + msg)
-                #requests.post('http://localhost:' + str(self.port) + '/publish', json=data)
+                #print("f: " + msg)
+                requests.post('http://localhost:' + str(self.port) + '/publish', json=data)
             except:
                 pass
 
