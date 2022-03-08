@@ -4,14 +4,19 @@ from datetime import datetime
 import time
 import platform as _platform
 
+from translator import Translator
+
 # A smarter man could figure out how to pass the channel into here and publish directly
 class KeyCapture:  
-    def __init__(self, whitelist, port, wobserver, translator):
+    def __init__(self, whitelist, port, wobserver, config):
         self.whitelist = whitelist
         self.port = port
         self.wobserver = wobserver
-        self.translator = translator
+        self.config = config
         self.enabled = True
+
+        self.translator = Translator(config)
+
         '''
         program_sentence is a map that stores a list of key events per program
         this is important because a user could switch between applications without finishing sentences in one
@@ -23,6 +28,10 @@ class KeyCapture:
         self.enabled = status
         if not self.enabled:
             self.program_sentence = dict()
+
+    def reload_config(self, config):
+        self.program_sentence = dict()
+        self.translator = Translator(config)
     
     def get_enable_status(self):
         return self.enabled

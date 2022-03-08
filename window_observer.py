@@ -67,7 +67,8 @@ class WindowObserver:
             window = win32gui.GetForegroundWindow() 
             self.current_window_name = win32gui.GetWindowText(window) 
             (tid, self.current_pid) = win32process.GetWindowThreadProcessId(window) # (thread id, process id)
-            
+            # different windows/tabs will have the same pid/tid, so unfortunately we have to stick with window titles
+
             if self.current_window_name != self.last_window_name:
                 if self.current_pid > 0:
                     try:

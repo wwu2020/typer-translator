@@ -1,13 +1,32 @@
 from genericpath import exists
-from flask import Flask, request, send_from_directory, g, Response, jsonify
+from flask import Flask, request, send_from_directory, g, jsonify
+from gevent import config
+config.set('resolver', 'block')
 from gevent.pywsgi import WSGIServer
 import flask_sse
-import threading, signal
+import threading
 import json
 import sqlite3
 import configparser
+import sys, os
 
-from translator import Translator
+import wx.adv
+import wx
+import webbrowser
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+TRAY_TOOLTIP = 'Typer Translator' 
+TRAY_ICON = resource_path('./client/public/favicon.png')
+
 from window_observer import WindowObserver
 from key_capture import KeyCapture
 
@@ -52,11 +71,10 @@ def init_config():
 whitelist = []
 config = configparser.ConfigParser()
 init_config()
-translator = Translator(config)
 wobserver = WindowObserver(PORT)
-klogger = KeyCapture(whitelist, PORT, wobserver, translator)
+klogger = KeyCapture(whitelist, PORT, wobserver, config)
 
-server = WSGIServer(("", PORT), app) # you can change the port here
+#server = WSGIServer(("", PORT), app) 
 obthread = threading.Thread(target=wobserver.observe, daemon=True)
 klthread = threading.Thread(target=klogger.start_capture, daemon=True)
 
@@ -159,18 +177,84 @@ def base():
 def home(path):
     return send_from_directory('client/public', path)
 
-@app.route("/shutdown")
-def shutdown():
-    print("Shutdown request")
-    server.stop()
-    return "Goodbye, remember to hit any key"
+# @app.route("/shutdown")
+# def shutdown():
+#     print("Shutdown request")
+#     server.stop()
+#     return "Goodbye, remember to hit any key"
 
-def ctrlc_handler(signum, frame):
-    server.stop()
+# # for when you run in a terminal
+# def ctrlc_handler(signum, frame):
+#     server.stop()
 
 def populate_whitelist():
     for entry in query_db('SELECT * FROM whitelist'):
         whitelist.append(entry["process"])
+
+def reload_config():
+    init_config()
+    klogger.reload_config(config)
+
+def open_config():
+    os.startfile('config.ini')
+
+'''
+Now for headless application
+'''
+
+def create_menu_item(menu, label, func):
+    item = wx.MenuItem(menu, -1, label)
+    menu.Bind(wx.EVT_MENU, func, id=item.GetId())
+    menu.Append(item)
+    return item
+
+class TaskBarIcon(wx.adv.TaskBarIcon):
+    def __init__(self, frame):
+        self.frame = frame
+        super(TaskBarIcon, self).__init__()
+        self.set_icon(TRAY_ICON)
+        self.Bind(wx.adv.EVT_TASKBAR_LEFT_DOWN, self.on_left_down)
+
+    def CreatePopupMenu(self):
+        menu = wx.Menu()
+        create_menu_item(menu, 'Open Config', self.on_open_config)
+        create_menu_item(menu, 'Reload Config', self.on_reload_config)
+        menu.AppendSeparator()
+        create_menu_item(menu, 'Exit', self.on_exit)
+        return menu
+
+    def set_icon(self, path):
+        icon = wx.Icon(path)
+        self.SetIcon(icon, TRAY_TOOLTIP)
+
+    def on_left_down(self, event):      
+        webbrowser.open('http://localhost:' + str(PORT))
+    
+    def on_open_config(self, event):
+        open_config()
+
+    def on_reload_config(self, event):
+        reload_config()
+
+    def on_exit(self, event):
+        wx.CallAfter(self.Destroy)
+        self.frame.Close()
+
+class wxApp(wx.App):
+    def OnInit(self):
+        frame=wx.Frame(None)
+        self.SetTopWindow(frame)
+        TaskBarIcon(frame)
+        return True
+
+# https://github.com/gevent/gevent/issues/1427
+# How to run wsgi server in threads, relevant to the 'block' dns resolver at top
+def run_server():
+    def run_wsgi():
+        server = WSGIServer(("", PORT), app) 
+        server.serve_forever()
+    t = threading.Thread(target=run_wsgi, daemon=True)
+    t.start()
 
 def main():
     init_db()
@@ -178,8 +262,16 @@ def main():
 
     klthread.start()
     obthread.start()
-    signal.signal(signal.SIGINT, ctrlc_handler)
-    server.serve_forever()
+
+    # for production
+    run_server()
+    wxA = wxApp(False)
+    wxA.MainLoop()
+
+    # for debug in terminal
+
+    # signal.signal(signal.SIGINT, ctrlc_handler)
+    # server.serve_forever()
 
     print("Goodbye")
 
