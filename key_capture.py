@@ -52,28 +52,43 @@ class KeyCapture:
         capslock_pressed = False
         ctrl_pressed = False
         windows_pressed = False
+        ctrl_a_state = False
         string = ''
-        for event in events:
+        for count, event in enumerate(events):
             name = event.name
 
             # Space is the only key that we _parse_hotkey to the spelled out name
             # because of legibility. Now we have to undo that.
             if event.name == 'space':
                 name = ' '
-            
-            if 'ctrl' in event.name:
-                ctrl_pressed = event.event_type == 'down'
-            if 'windows' in event.name:
-                windows_pressed = event.event_type == 'down'
-
-            if 'shift' in event.name:
-                shift_pressed = event.event_type == 'down'
+            #print(count, event, string)
+            # handling ctrl a situations
+            if 'a' in event.name.lower() and ctrl_pressed and not ctrl_a_state and event.event_type == 'down':
+                ctrl_a_state = True     
+            elif event.name in ['shift', 'ctrl', 'windows']:
+                if 'ctrl' in event.name: ctrl_pressed = event.event_type == 'down' 
+                if 'shift' in event.name: shift_pressed = event.event_type == 'down'
+                if 'windows' in event.name: windows_pressed = event.event_type == 'down'
             elif event.name == 'caps lock' and event.event_type == 'down':
                 capslock_pressed = not capslock_pressed
             elif allow_backspace and event.name == backspace_name and event.event_type == 'down':
-                string = string[:-1]
+                if ctrl_a_state:
+                    string = ''
+                    ctrl_a_state = False
+                elif not ctrl_pressed:
+                    string = string[:-1]
+                else: # support for ctrl backspace which deletes last word
+                    idx = string.rfind(' ')
+                    if idx != -1:
+                        string = string[:idx]
+                    else:
+                        string = ''  
             elif event.event_type == 'down':
-                if len(name) == 1:
+                if ctrl_a_state:
+                    if event.name not in keyboard.all_modifiers or event.name == 'space':
+                        string = name
+                    ctrl_a_state = False
+                elif len(name) == 1:
                     if shift_pressed ^ capslock_pressed:
                         name = name.upper()
                     string = string if ctrl_pressed or windows_pressed else string + name
@@ -98,7 +113,8 @@ class KeyCapture:
                 "tl_phrase": translated
             }
             try:
-                requests.post('http://localhost:' + str(self.port) + '/publish', json=data)
+                print("f: " + msg)
+                #requests.post('http://localhost:' + str(self.port) + '/publish', json=data)
             except:
                 pass
 

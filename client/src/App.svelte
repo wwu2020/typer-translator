@@ -24,6 +24,7 @@
 
 	let hovered_phrase;
 	let hovered_component;
+	let hovered_text;
 
 	let disconnected = false;
 
@@ -105,6 +106,10 @@
 		});
 	}
 
+	function copy_phrase(event) {
+		let text = event.detail;
+		navigator.clipboard.writeText(text);
+	}
 	async function get_saved_phrases() {
 		const response = await fetch(tt.concat("/savedphrases"));
 		await response.json().then(data => saved_phrases = data);
@@ -217,14 +222,16 @@
 		}
 	}
 
-	function setHoveredInfo(component, data) {
+	function setHoveredInfo(component, phrase, text) {
 		hovered_component = component;
-		hovered_phrase = data;
+		hovered_phrase = phrase;
+		hovered_text = text;
 	}
 
 	function unsetHoveredInfo() {
 		hovered_component = "";
 		hovered_phrase = {};
+		hovered_text = "";
 	}
 	
 	beforeUpdate(() => {
@@ -327,12 +334,18 @@
 						</article>
 					{/if}
 					<article class="author">
-						<span on:mouseleave={() => unsetHoveredInfo()} on:mouseenter={() => setHoveredInfo("phrases", phrase)}>
+						<span on:mouseleave={() => unsetHoveredInfo()}
+							  on:mouseenter={() => setHoveredInfo("phrases", phrase, phrase.phrase)}
+							 >
 							{phrase.phrase}
 						</span>
 					</article>
 					<article class="translator">
-						<span>{phrase.tl_phrase}</span>
+						<span on:mouseleave={() => unsetHoveredInfo()}
+							  on:mouseenter={() => setHoveredInfo("phrases", phrase, phrase.tl_phrase)}
+							  >
+							{phrase.tl_phrase}
+						</span>
 					</article>
 				{/each}
 			</div>
@@ -345,10 +358,20 @@
 			<h1>Saved Phrases</h1>
 			<div class="scrollable">
 				{#each saved_phrases as saved}
-					<article class="saved_phrase" on:mouseleave={() => unsetHoveredInfo()} on:mouseenter={() => setHoveredInfo("saved_phrases", saved)}>
-						<span class="saved_text">{saved.phrase}</span>
+					<article class="saved_phrase" on:mouseenter={() => setHoveredInfo("saved_phrases", saved, saved.tl_phrase)}>
+						<span class="saved_text"
+						 on:mouseleave={() => unsetHoveredInfo()} 
+						 on:mouseenter={() => setHoveredInfo("saved_phrases", saved, saved.phrase)} 
+						 >
+							{saved.phrase}
+						</span>
 						<br>
-						<span class="saved_translated">{saved.tl_phrase}</span>
+						<span class="saved_translated" 
+						 on:mouseleave={() => unsetHoveredInfo()} 
+						 on:mouseenter={() => setHoveredInfo("saved_phrases", saved, saved.tl_phrase)} 
+						 >
+							{saved.tl_phrase}
+						</span>
 					</article>
 					<br>
 				{/each}
@@ -360,7 +383,9 @@
 <CustomMenu
 	hovered_component={hovered_component}
 	hovered_phrase={hovered_phrase}
+	hovered_text={hovered_text}
 	on:save-phrase={new_saved_phrase}
+	on:copy-phrase={copy_phrase}
 	on:delete-phrase={remove_phrase}
 	on:delete-saved-phrase={remove_saved_phrase}
 	/>
@@ -395,6 +420,11 @@
 		max-width: 90%;
 		display: table;
 		margin: 0 auto;
+	}
+
+	.saved_text:hover,
+	.saved_translated:hover {
+		background-color: rgb(53, 53, 53);
 	}
 
 	.whitelist-program {
@@ -517,6 +547,10 @@
 
 	.author span:hover {
 		background-color: #015094;
+	}
+
+	.translator span:hover {
+		background-color: #494b4d;
 	}
 
 	.row {
