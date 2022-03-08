@@ -184,8 +184,7 @@ def home(path):
 #     return "Goodbye, remember to hit any key"
 
 # for when you run in a terminal
-def ctrlc_handler(signum, frame):
-    wobserver.cleanup()
+# def ctrlc_handler(signum, frame):
     #server.stop()
 
 def populate_whitelist():
@@ -276,9 +275,9 @@ def main():
 
     # for debug in terminal
 
-    signal.signal(signal.SIGINT, ctrlc_handler)
+    # signal.signal(signal.SIGINT, ctrlc_handler)
     # server.serve_forever()
-    ctrlc_handler(0, 0)
+
     print("Goodbye")
 
 if __name__ == "__main__":

@@ -3,6 +3,9 @@ import requests
 from datetime import datetime
 import time
 import platform as _platform
+import win32clipboard
+import threading
+import copy
 
 from translator import Translator
 
@@ -29,6 +32,8 @@ class KeyCapture:
         self.wobserver = wobserver
         self.config = config
         self.enabled = True
+
+        self.threads = []
 
         self.translator = Translator(config)
 
@@ -79,7 +84,18 @@ class KeyCapture:
             #print(count, event, string)
             # handling ctrl a situations
             if 'a' in event.name.lower() and ctrl_pressed and not ctrl_a_state and event.event_type == 'down':
-                ctrl_a_state = True     
+                ctrl_a_state = True
+            elif 'v' in event.name.lower() and ctrl_pressed and event.event_type == 'down':
+                win32clipboard.OpenClipboard()
+                try:
+                    result = win32clipboard.GetClipboardData()
+                except TypeError:
+                    result = ''  #non-text
+                win32clipboard.CloseClipboard()
+                if not ctrl_a_state:
+                    string += result
+                else:
+                    string = result
             elif event.name in ['shift', 'ctrl', 'windows']:
                 if 'ctrl' in event.name: ctrl_pressed = event.event_type == 'down' 
                 if 'shift' in event.name: shift_pressed = event.event_type == 'down'
@@ -103,22 +119,25 @@ class KeyCapture:
                     if event.name not in set.union(keyboard.all_modifiers, invisible_keys) or event.name == 'space':
                         string = name
                     ctrl_a_state = False
+                elif name == 'enter': # we can do this because we definitely are splitting sentences based on "enter" because that's how chat based systems work
+                    yield string
+                    string = ''
+                    ctrl_a_state = False
                 elif len(name) == 1:
                     if shift_pressed ^ capslock_pressed:
                         name = name.upper()
                     string = string if ctrl_pressed or windows_pressed else string + name
-                else:
-                    yield string
-                    string = ''
         yield string
 
-    def send_sentence(self, gen):
+    def send_sentence(self, key_events):
+        gen = self.capture_sentence(key_events)
         for msg in gen:
             if msg.isspace() or msg == '':
                 continue
             now = datetime.now()
             current_time = now.strftime("%H:%M:%S")
 
+            # we need to thread this
             translated = self.translator.translate(msg)
             data = {
                 "type": "phrase",
@@ -130,6 +149,7 @@ class KeyCapture:
             try:
                 #print("f: " + msg)
                 requests.post('http://localhost:' + str(self.port) + '/publish', json=data)
+
             except:
                 pass
 
@@ -153,7 +173,9 @@ class KeyCapture:
                         d[w] = []
                 
                     if event.name == 'enter':
-                        self.send_sentence(self.capture_sentence(d[w]))
+                        d[w].append(event) 
+                        self.threads.append(threading.Thread(target=self.send_sentence, args=(copy.deepcopy(d[w]),), daemon=True).start())
+                        #self.send_sentence(self.capture_sentence(d[w]))
                         d[w] = []
                     else:
                         d[w].append(event) 
@@ -162,7 +184,9 @@ class KeyCapture:
                         d[p] = []
                 
                     if event.name == 'enter':
-                        self.send_sentence(self.capture_sentence(d[p]))
+                        d[p].append(event) 
+                        self.threads.append(threading.Thread(target=self.send_sentence, args=(copy.deepcopy(d[p]),), daemon=True).start())
+                        #self.send_sentence(self.capture_sentence(d[p]))
                         d[p] = []
                     else:
                         d[p].append(event) 
