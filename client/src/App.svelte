@@ -89,14 +89,19 @@
 	}
 
 	function update_program_list(data) {
-		last_x_programs.unshift(data.process_name);
-		last_x_windows.unshift(data.window_name);
-		if(last_x_programs.length > program_history) {
-			last_x_programs.pop();
-			last_x_windows.pop();
+		// We'll ignore windows that have blank window titles, afaik only task switching has this
+		// If for some reason you're typing into a window which has no title...
+		// This is due to "alt tabbing" spamming the events
+		if(data.window_name != "") {
+			last_x_programs.unshift(data.process_name);
+			last_x_windows.unshift(data.window_name);
+			if(last_x_programs.length > program_history) {
+				last_x_programs.pop();
+				last_x_windows.pop();
+			}
+			last_x_programs = last_x_programs; // svelte reactivity only works on assignment
+			last_x_windows = last_x_windows;
 		}
-		last_x_programs = last_x_programs; // svelte reactivity only works on assignment
-		last_x_windows = last_x_windows;
 	}
 
 	function remove_phrase(event) {
