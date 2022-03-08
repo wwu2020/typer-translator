@@ -33,8 +33,6 @@ class KeyCapture:
         self.config = config
         self.enabled = True
 
-        self.threads = []
-
         self.translator = Translator(config)
 
         '''
@@ -174,8 +172,8 @@ class KeyCapture:
                 
                     if event.name == 'enter':
                         d[w].append(event) 
-                        self.threads.append(threading.Thread(target=self.send_sentence, args=(copy.deepcopy(d[w]),), daemon=True).start())
-                        #self.send_sentence(self.capture_sentence(d[w]))
+                        # make a deepcopy so the working copy isn't deleted right after
+                        threading.Thread(target=self.send_sentence, args=(copy.deepcopy(d[w]),), daemon=True).start()
                         d[w] = []
                     else:
                         d[w].append(event) 
@@ -185,13 +183,7 @@ class KeyCapture:
                 
                     if event.name == 'enter':
                         d[p].append(event) 
-                        self.threads.append(threading.Thread(target=self.send_sentence, args=(copy.deepcopy(d[p]),), daemon=True).start())
-                        #self.send_sentence(self.capture_sentence(d[p]))
+                        threading.Thread(target=self.send_sentence, args=(copy.deepcopy(d[p]),), daemon=True).start()
                         d[p] = []
                     else:
                         d[p].append(event) 
-                
-
-            
-
-            # self.send_sentence(self.capture_sentence(keyboard.record(until='enter')))
