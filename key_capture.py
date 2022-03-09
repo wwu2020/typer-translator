@@ -6,6 +6,7 @@ import platform as _platform
 import win32clipboard
 import threading
 import copy
+import flask_sse
 
 from translator import Translator
 
@@ -23,6 +24,8 @@ invisible_keys = {
     'caps lock',
     'num lock',
 }
+
+channel = flask_sse.Channel()
 
 # A smarter man could figure out how to pass the channel into here and publish directly
 class KeyCapture:  
@@ -146,8 +149,8 @@ class KeyCapture:
             }
             try:
                 #print("f: " + msg)
-                requests.post('http://localhost:' + str(self.port) + '/publish', json=data)
-
+                # requests.post('http://localhost:' + str(self.port) + '/publish', json=data)
+                channel.publish(json.dumps(data))
             except:
                 pass
 
