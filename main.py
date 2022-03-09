@@ -19,12 +19,15 @@ def resource_path(relative_path):
     try:
         # PyInstaller creates a temp folder and stores path in _MEIPASS
         base_path = sys._MEIPASS
+    # Attribute Error
     except Exception:
         base_path = os.path.abspath(".")
 
     return os.path.join(base_path, relative_path)
 
 TRAY_TOOLTIP = 'Typer Translator' 
+# Needs to be OS independent
+# os.path.join('.', 'client', 'public', 'favicon.png')
 TRAY_ICON = resource_path('./client/public/favicon.png')
 
 from window_observer import WindowObserver
@@ -37,42 +40,47 @@ app = Flask(__name__)
 # https://github.com/singingwolfboy/flask-sse/issues/7
 channel = flask_sse.Channel()
 
-def init_config():
+def init_config(config_dict):
     if not exists("./config.ini"):
-        config['default'] = {}
-        default = config['default']
+	# default = {}
+	# config['default'] = default
+        config_dict['default'] = {}
+        default = config_dict['default']
+	
+	
         default['provider'] = "deepl"
         # default['from_lang'] = "EN"
         default['to_lang'] = "ja"
 
-        config['deepl'] = {}
-        deepl = config['deepl']
+        config_dict['deepl'] = {}
+        deepl = config_dict['deepl']
         deepl['secret_access_key'] = 'null'
         deepl['pro'] = 'False'
 
-        config['microsoft'] = {}
-        msft = config['microsoft']
+        config_dict['microsoft'] = {}
+        msft = config_dict['microsoft']
         msft['secret_access_key'] = 'null'
 
-        config['mymemory'] = {}
-        mmem = config['mymemory']
+        config_dict['mymemory'] = {}
+        mmem = config_dict['mymemory']
         mmem['email'] = 'null'
 
-        config['libre'] = {}
-        libre = config['libre']
+        config_dict['libre'] = {}
+        libre = config_dict['libre']
         libre['secret_access_key'] = 'null'
         libre['base_url'] = 'http://localhost:5000'
 
         with open('./config.ini', 'w') as configfile:
-            config.write(configfile)
+            config_dict.write(configfile)
     else:
-        config.read('./config.ini')
+        config_dict.read('./config.ini')
 
 whitelist = []
-config = configparser.ConfigParser()
-init_config()
+# Don't overwrite the namespace of the import at line 3
+config_dict = configparser.ConfigParser()
+init_config(config_dict)
 wobserver = WindowObserver(PORT)
-klogger = KeyCapture(whitelist, PORT, wobserver, config)
+klogger = KeyCapture(whitelist, PORT, wobserver, config_dict)
 
 #server = WSGIServer(("", PORT), app) 
 obthread = threading.Thread(target=wobserver.observe_event_based, daemon=True)
@@ -92,6 +100,7 @@ def init_db():
             db.cursor().executescript(f.read())
         db.commit()
 
+# one=True is inefficient since it is generally better to use a "LIMIT" statement in the query, or just fetch one (but LIMIT is optimal)
 def query_db(query, args=(), one=False):
     with app.app_context():
         cur = get_db().execute(query, args)
@@ -121,6 +130,7 @@ def programs():
 def currentprogram():
     return jsonify({"process": wobserver.get_current_process(), "window": wobserver.get_current_window()})
 
+# Should consider exception handling for bad json input
 @app.route('/whitelist', methods=['POST', 'GET'])
 def getwhitelist():
     if request.method == 'POST':
