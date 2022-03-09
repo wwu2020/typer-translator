@@ -28,14 +28,15 @@ TRAY_TOOLTIP = 'Typer Translator'
 TRAY_ICON = resource_path('./client/public/favicon.png')
 
 from window_observer import WindowObserver
-from key_capture import KeyCapture
+from key_capture import KeyCapture, channel
 
 DATABASE = './typer-translator-database.db'
 PORT = 35465
 
 app = Flask(__name__)
 # https://github.com/singingwolfboy/flask-sse/issues/7
-channel = flask_sse.Channel()
+
+# channel = flask_sse.Channel()
 
 def init_config():
     if not exists("./config.ini"):
